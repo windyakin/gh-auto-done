@@ -69,6 +69,77 @@ func TestListNotifications(t *testing.T) {
 	}
 }
 
+func TestListNotificationsPagination(t *testing.T) {
+	page1 := `[{"id":"1","subject":{"title":"PR 1","url":"https://api.github.com/repos/owner/repo/pulls/1","type":"PullRequest"},"repository":{"full_name":"owner/repo"}}]`
+	page2 := `[{"id":"2","subject":{"title":"PR 2","url":"https://api.github.com/repos/owner/repo/pulls/2","type":"PullRequest"},"repository":{"full_name":"owner/repo"}}]`
+
+	var requestCount int
+	client := newTestClient(t, func(r *http.Request) (*http.Response, error) {
+		requestCount++
+		switch {
+		case r.URL.Path == "/notifications" && r.URL.Query().Get("page") == "":
+			resp := jsonResponseWithBody(200, page1)
+			resp.Header.Set("Link", `<https://api.github.com/notifications?per_page=100&page=2>; rel="next"`)
+			return resp, nil
+		case r.URL.Path == "/notifications" && r.URL.Query().Get("page") == "2":
+			return jsonResponseWithBody(200, page2), nil
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+			return jsonResponseWithBody(200, "[]"), nil
+		}
+	})
+
+	notifications, err := client.ListNotifications(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(notifications) != 2 {
+		t.Fatalf("expected 2 notifications, got %d", len(notifications))
+	}
+	if requestCount != 2 {
+		t.Errorf("expected 2 requests, got %d", requestCount)
+	}
+	if notifications[0].ID != "1" {
+		t.Errorf("expected first notification ID 1, got %s", notifications[0].ID)
+	}
+	if notifications[1].ID != "2" {
+		t.Errorf("expected second notification ID 2, got %s", notifications[1].ID)
+	}
+}
+
+func TestNextPageURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		header string
+		want   string
+	}{
+		{
+			name:   "with next link",
+			header: `<https://api.github.com/notifications?page=2>; rel="next", <https://api.github.com/notifications?page=5>; rel="last"`,
+			want:   "https://api.github.com/notifications?page=2",
+		},
+		{
+			name:   "no next link",
+			header: `<https://api.github.com/notifications?page=5>; rel="last"`,
+			want:   "",
+		},
+		{
+			name:   "empty header",
+			header: "",
+			want:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := nextPageURL(tt.header)
+			if got != tt.want {
+				t.Errorf("nextPageURL(%q) = %q, want %q", tt.header, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestGetSubjectState(t *testing.T) {
 	tests := []struct {
 		name      string

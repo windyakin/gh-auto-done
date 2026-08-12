@@ -4,6 +4,7 @@ type Notification struct {
 	ID         string                 `json:"id"`
 	Unread     bool                   `json:"unread"`
 	Reason     string                 `json:"reason"`
+	UpdatedAt  string                 `json:"updated_at"`
 	Subject    NotificationSubject    `json:"subject"`
 	Repository NotificationRepository `json:"repository"`
 }

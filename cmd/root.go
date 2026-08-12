@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 
 	"git.pepabo.com/windyakin/gh-auto-done/internal/github"
 	"github.com/spf13/cobra"
@@ -49,6 +50,10 @@ func run(ctx context.Context, hostname string, dryRun bool) error {
 		fmt.Fprintln(os.Stderr, "No notifications found.")
 		return nil
 	}
+
+	sort.Slice(notifications, func(i, j int) bool {
+		return notifications[i].UpdatedAt > notifications[j].UpdatedAt
+	})
 
 	fmt.Fprintf(os.Stderr, "Checking %d notifications...\n", len(notifications))
 
