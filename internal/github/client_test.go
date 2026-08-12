@@ -110,18 +110,18 @@ func TestGetSubjectState(t *testing.T) {
 }
 
 func TestMarkThreadAsDone(t *testing.T) {
-	var patchCalled bool
+	var called bool
 
 	client := newTestClient(t, func(r *http.Request) (*http.Response, error) {
-		if r.Method != http.MethodPatch {
-			t.Errorf("expected PATCH, got %s", r.Method)
+		if r.Method != http.MethodDelete {
+			t.Errorf("expected DELETE, got %s", r.Method)
 		}
 		if r.URL.Path != "/notifications/threads/123" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		patchCalled = true
+		called = true
 		return &http.Response{
-			StatusCode: 205,
+			StatusCode: 204,
 			Header:     http.Header{},
 			Body:       http.NoBody,
 		}, nil
@@ -131,7 +131,7 @@ func TestMarkThreadAsDone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !patchCalled {
-		t.Error("expected PATCH to be called")
+	if !called {
+		t.Error("expected DELETE to be called")
 	}
 }

@@ -44,7 +44,7 @@ func (c *Client) GetSubjectState(ctx context.Context, subjectURL string) (*Subje
 
 func (c *Client) MarkThreadAsDone(ctx context.Context, threadID string) error {
 	path := fmt.Sprintf("notifications/threads/%s", threadID)
-	resp, err := c.rest.RequestWithContext(ctx, http.MethodPatch, path, nil)
+	resp, err := c.rest.RequestWithContext(ctx, http.MethodDelete, path, nil)
 	if err != nil {
 		return fmt.Errorf("failed to mark thread %s as done: %w", threadID, err)
 	}
