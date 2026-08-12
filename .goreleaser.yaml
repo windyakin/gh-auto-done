@@ -1,0 +1,25 @@
+version: 2
+
+builds:
+  - binary: gh-auto-done
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  prerelease: auto
