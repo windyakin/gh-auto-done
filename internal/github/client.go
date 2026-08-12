@@ -1,0 +1,53 @@
+package github
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/cli/go-gh/v2/pkg/api"
+)
+
+type Client struct {
+	rest *api.RESTClient
+}
+
+func NewClient(hostname string) (*Client, error) {
+	opts := api.ClientOptions{}
+	if hostname != "" {
+		opts.Host = hostname
+	}
+	rest, err := api.NewRESTClient(opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create REST client: %w", err)
+	}
+	return &Client{rest: rest}, nil
+}
+
+func (c *Client) ListNotifications(ctx context.Context) ([]Notification, error) {
+	var notifications []Notification
+	err := c.rest.DoWithContext(ctx, http.MethodGet, "notifications?per_page=100", nil, &notifications)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list notifications: %w", err)
+	}
+	return notifications, nil
+}
+
+func (c *Client) GetSubjectState(ctx context.Context, subjectURL string) (*SubjectState, error) {
+	var state SubjectState
+	err := c.rest.DoWithContext(ctx, http.MethodGet, subjectURL, nil, &state)
+	if err != nil {
+		return nil, err
+	}
+	return &state, nil
+}
+
+func (c *Client) MarkThreadAsDone(ctx context.Context, threadID string) error {
+	path := fmt.Sprintf("notifications/threads/%s", threadID)
+	resp, err := c.rest.RequestWithContext(ctx, http.MethodPatch, path, nil)
+	if err != nil {
+		return fmt.Errorf("failed to mark thread %s as done: %w", threadID, err)
+	}
+	resp.Body.Close()
+	return nil
+}
