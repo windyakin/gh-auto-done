@@ -2,11 +2,16 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"regexp"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 )
+
+var linkNextPattern = regexp.MustCompile(`<([^>]+)>;\s*rel="next"`)
 
 type Client struct {
 	rest *api.RESTClient
@@ -25,12 +30,42 @@ func NewClient(hostname string) (*Client, error) {
 }
 
 func (c *Client) ListNotifications(ctx context.Context) ([]Notification, error) {
-	var notifications []Notification
-	err := c.rest.DoWithContext(ctx, http.MethodGet, "notifications?per_page=100", nil, &notifications)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list notifications: %w", err)
+	var all []Notification
+	path := "notifications?per_page=100"
+
+	for path != "" {
+		resp, err := c.rest.RequestWithContext(ctx, http.MethodGet, path, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list notifications: %w", err)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read response body: %w", err)
+		}
+
+		var page []Notification
+		if err := json.Unmarshal(body, &page); err != nil {
+			return nil, fmt.Errorf("failed to parse notifications: %w", err)
+		}
+		all = append(all, page...)
+
+		path = nextPageURL(resp.Header.Get("Link"))
 	}
-	return notifications, nil
+
+	return all, nil
+}
+
+func nextPageURL(linkHeader string) string {
+	if linkHeader == "" {
+		return ""
+	}
+	m := linkNextPattern.FindStringSubmatch(linkHeader)
+	if m == nil {
+		return ""
+	}
+	return m[1]
 }
 
 func (c *Client) GetSubjectState(ctx context.Context, subjectURL string) (*SubjectState, error) {
